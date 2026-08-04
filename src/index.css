@@ -1,0 +1,33 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+html, body, #root {
+  height: 100%;
+}
+
+body {
+  background-color: #FAFAF7;
+  background-image: radial-gradient(circle, #DFDAC9 1px, transparent 1px);
+  background-size: 18px 18px;
+  color: #1B2A4A;
+  font-family: 'Inter', sans-serif;
+}
+
+::selection {
+  background: #F4DEDB;
+  color: #C4342B;
+}
+
+/* tabular numbers everywhere data appears */
+.tabular {
+  font-variant-numeric: tabular-nums;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  * {
+    animation-duration: 0.001ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.001ms !important;
+  }
+}
