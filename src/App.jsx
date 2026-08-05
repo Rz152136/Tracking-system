@@ -4,7 +4,7 @@ import Login from './components/Login'
 import Sidebar from './components/Sidebar'
 import Dashboard from './components/Dashboard'
 import OrdersPage from './components/OrdersPage'
-import ProductionPage from './components/ProductionPage'
+import StagePage from './components/StagePage'
 import UsersPage from './components/UsersPage'
 import { useCollection } from './hooks/useCollection'
 import { canAccess, firstAllowedTab } from './utils/permissions'
@@ -13,14 +13,16 @@ const TITLES = {
   dashboard: 'Ringkasan Produksi',
   orders: 'Data Order',
   production: 'Input Produksi',
+  packing: 'Input Packing',
   users: 'Kelola User',
 }
 
 const DESCRIPTIONS = {
   dashboard:
-    'Perbandingan order vs hasil produksi per PO, Style, Body, dan Size. Angka merah menandai kekurangan.',
+    'Perbandingan Order vs Produksi vs Packing per PO, Style, Body, dan Size. Angka merah menandai kekurangan.',
   orders: 'Catat detail order per PO, Style, Body, dan Size.',
-  production: 'Catat hasil produksi harian sesuai kombinasi PO, Style, Body, dan Size.',
+  production: 'Catat hasil produksi harian sesuai kombinasi PO, Style, Body, dan Size yang sudah diorder.',
+  packing: 'Catat hasil packing harian sesuai kombinasi PO, Style, Body, dan Size yang sudah diorder.',
   users: 'Tambah user baru dan atur level akses tiap user.',
 }
 
@@ -29,6 +31,7 @@ function AppShell() {
   const [tab, setTab] = useState(null)
   const { data: orders, loading: loadingOrders } = useCollection('orders')
   const { data: productions, loading: loadingProductions } = useCollection('productions')
+  const { data: packing, loading: loadingPacking } = useCollection('packing')
 
   if (loading) {
     return (
@@ -83,15 +86,27 @@ function AppShell() {
           <Dashboard
             orders={orders}
             productions={productions}
-            loading={loadingOrders || loadingProductions}
+            packing={packing}
+            loading={loadingOrders || loadingProductions || loadingPacking}
           />
         )}
         {activeTab === 'orders' && <OrdersPage orders={orders} loading={loadingOrders} />}
         {activeTab === 'production' && (
-          <ProductionPage
+          <StagePage
+            collectionName="productions"
+            stageLabel="Produksi"
             orders={orders}
-            productions={productions}
+            entries={productions}
             loading={loadingProductions}
+          />
+        )}
+        {activeTab === 'packing' && (
+          <StagePage
+            collectionName="packing"
+            stageLabel="Packing"
+            orders={orders}
+            entries={packing}
+            loading={loadingPacking}
           />
         )}
         {activeTab === 'users' && <UsersPage />}
