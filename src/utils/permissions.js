@@ -5,6 +5,7 @@ export const TAB_PERMISSIONS = {
   dashboard: ['IE', 'Record', 'Operator', 'King'],
   orders: ['IE', 'Record', 'King'],
   production: ['IE', 'Operator', 'King'],
+  packing: ['IE', 'Operator', 'King'],
   users: ['King'],
 }
 
@@ -12,7 +13,8 @@ export const TAB_LABELS = {
   dashboard: { label: 'Ringkasan', code: '01' },
   orders: { label: 'Order', code: '02' },
   production: { label: 'Input Produksi', code: '03' },
-  users: { label: 'Kelola User', code: '04' },
+  packing: { label: 'Input Packing', code: '04' },
+  users: { label: 'Kelola User', code: '05' },
 }
 
 export function canAccess(role, tab) {
