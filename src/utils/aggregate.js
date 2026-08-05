@@ -99,3 +99,44 @@ export function groupByPO(rows) {
 export function poListFromOrders(orders) {
   return Array.from(new Set(orders.map((o) => o.po || '(Tanpa PO)'))).sort()
 }
+
+/**
+ * WIP (Work In Progress) = qty yang sudah diproduksi tapi BELUM di-packing.
+ * wip = producedQty - packedQty
+ *   wip > 0  -> masih ada barang "mengendap" di antara Produksi dan Packing
+ *   wip = 0  -> semua yang sudah diproduksi sudah selesai di-packing juga
+ *   wip < 0  -> packing lebih besar dari produksi (kemungkinan salah input, perlu dicek)
+ */
+export function buildWipRows(productionItems, packingItems) {
+  const packMap = new Map()
+  for (const item of packingItems) {
+    packMap.set(keyOf(item.po, item.style, item.body, item.size), item.doneQty)
+  }
+  return productionItems.map((item) => {
+    const packedQty = packMap.get(keyOf(item.po, item.style, item.body, item.size)) || 0
+    return {
+      po: item.po,
+      style: item.style,
+      body: item.body,
+      size: item.size,
+      producedQty: item.doneQty,
+      packedQty,
+      wip: item.doneQty - packedQty,
+    }
+  })
+}
+
+export function groupWipByStyle(rows) {
+  const map = new Map()
+  for (const r of rows) {
+    if (!map.has(r.style)) map.set(r.style, [])
+    map.get(r.style).push(r)
+  }
+  return Array.from(map.entries()).map(([style, items]) => ({
+    style,
+    items,
+    totalProduced: items.reduce((s, i) => s + i.producedQty, 0),
+    totalPacked: items.reduce((s, i) => s + i.packedQty, 0),
+    totalWip: items.reduce((s, i) => s + i.wip, 0),
+  }))
+}
