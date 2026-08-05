@@ -3,37 +3,37 @@ export function keyOf(po, style, body, size) {
 }
 
 /**
- * Menggabungkan data order dan produksi menjadi satu baris ringkasan
- * per kombinasi PO + Style + Body + Size.
+ * Menggabungkan data order dengan data 1 tahap proses (produksi/washing/packing)
+ * menjadi satu baris ringkasan per kombinasi PO + Style + Body + Size.
  *
- * selisih = totalProduksi - totalOrder
+ * selisih = totalDone - totalOrder
  *   selisih < 0  -> masih KURANG sebanyak |selisih| pcs (ditampilkan minus, merah)
- *   selisih >= 0 -> order sudah TERPENUHI (ditampilkan hijau)
+ *   selisih >= 0 -> order sudah TERPENUHI di tahap ini (ditampilkan hijau)
  */
-export function buildSummary(orders, productions) {
+export function buildStageSummary(orders, entries) {
   const map = new Map()
 
   for (const o of orders) {
     const po = o.po || '(Tanpa PO)'
     const k = keyOf(po, o.style, o.body, o.size)
     if (!map.has(k)) {
-      map.set(k, { po, style: o.style, body: o.body, size: o.size, orderQty: 0, producedQty: 0 })
+      map.set(k, { po, style: o.style, body: o.body, size: o.size, orderQty: 0, doneQty: 0 })
     }
     map.get(k).orderQty += Number(o.qty) || 0
   }
 
-  for (const p of productions) {
-    const po = p.po || '(Tanpa PO)'
-    const k = keyOf(po, p.style, p.body, p.size)
+  for (const e of entries) {
+    const po = e.po || '(Tanpa PO)'
+    const k = keyOf(po, e.style, e.body, e.size)
     if (!map.has(k)) {
-      map.set(k, { po, style: p.style, body: p.body, size: p.size, orderQty: 0, producedQty: 0 })
+      map.set(k, { po, style: e.style, body: e.body, size: e.size, orderQty: 0, doneQty: 0 })
     }
-    map.get(k).producedQty += Number(p.qty) || 0
+    map.get(k).doneQty += Number(e.qty) || 0
   }
 
   const rows = Array.from(map.values()).map((r) => ({
     ...r,
-    selisih: r.producedQty - r.orderQty,
+    selisih: r.doneQty - r.orderQty,
   }))
 
   rows.sort((a, b) => {
@@ -56,18 +56,14 @@ export function groupByStyle(rows) {
     style,
     items,
     totalOrder: items.reduce((s, i) => s + i.orderQty, 0),
-    totalProduced: items.reduce((s, i) => s + i.producedQty, 0),
+    totalDone: items.reduce((s, i) => s + i.doneQty, 0),
     totalSelisih: items.reduce((s, i) => s + i.selisih, 0),
   }))
 }
 
 /**
- * Mengelompokkan ringkasan berdasarkan PO. Setiap PO berisi beberapa style,
- * dan tiap style berisi breakdown body/size seperti biasa.
- *
- * status PO:
- *   isComplete = true   -> semua baris di dalam PO ini punya selisih >= 0 (order terpenuhi semua) -> "Selesai"
- *   isComplete = false  -> masih ada minimal 1 baris yang minus (kurang)
+ * Mengelompokkan ringkasan 1 tahap berdasarkan PO.
+ * isComplete = true -> semua baris di PO ini, di tahap ini, selisih >= 0.
  */
 export function groupByPO(rows) {
   const map = new Map()
@@ -78,25 +74,28 @@ export function groupByPO(rows) {
 
   const groups = Array.from(map.entries()).map(([po, items]) => {
     const totalOrder = items.reduce((s, i) => s + i.orderQty, 0)
-    const totalProduced = items.reduce((s, i) => s + i.producedQty, 0)
+    const totalDone = items.reduce((s, i) => s + i.doneQty, 0)
     const isComplete = items.length > 0 && items.every((i) => i.selisih >= 0)
     return {
       po,
       items,
       styles: groupByStyle(items),
       totalOrder,
-      totalProduced,
-      totalSelisih: totalProduced - totalOrder,
+      totalDone,
+      totalSelisih: totalDone - totalOrder,
       isComplete,
       shortLines: items.filter((i) => i.selisih < 0).length,
     }
   })
 
   groups.sort((a, b) => {
-    // PO yang belum selesai ditampilkan lebih dulu
     if (a.isComplete !== b.isComplete) return a.isComplete ? 1 : -1
     return a.po.localeCompare(b.po)
   })
 
   return groups
+}
+
+export function poListFromOrders(orders) {
+  return Array.from(new Set(orders.map((o) => o.po || '(Tanpa PO)'))).sort()
 }
