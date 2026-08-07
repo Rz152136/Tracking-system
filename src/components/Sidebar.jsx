@@ -7,10 +7,12 @@ export default function Sidebar({ active, onChange, role, name, email, onLogout 
     <aside className="w-full md:w-56 shrink-0 border-b md:border-b-0 md:border-r border-paperLine bg-paper/60 md:flex md:flex-col">
       <div className="p-5 border-b border-paperLine">
         <div className="font-display text-2xl tracking-wide text-ink leading-none">
-          SPEC BOARD
+          RISE
         </div>
-        <div className="text-[11px] font-mono text-inkFaint mt-1 tracking-widest uppercase">
-          Production Tracker
+        <div className="text-[10px] font-mono text-inkFaint mt-1 tracking-widest uppercase leading-snug">
+          Production Monitoring System
+          <br />
+          for Garment Manufacturing
         </div>
       </div>
       <nav className="flex md:flex-col p-2 gap-1">
