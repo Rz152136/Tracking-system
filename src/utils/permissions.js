@@ -1,11 +1,11 @@
-export const ROLES = ['IE', 'Record', 'Operator', 'King']
+export const ROLES = ['IE', 'Record', 'Operator Produksi', 'Operator Packing', 'King']
 
 // Aturan akses: tab mana yang boleh dibuka oleh level user apa.
 export const TAB_PERMISSIONS = {
-  dashboard: ['IE', 'Record', 'Operator', 'King'],
+  dashboard: ['IE', 'Record', 'Operator Produksi', 'Operator Packing', 'King'],
   orders: ['IE', 'Record', 'King'],
-  production: ['IE', 'Operator', 'King'],
-  packing: ['IE', 'Operator', 'King'],
+  production: ['IE', 'Operator Produksi', 'King'],
+  packing: ['IE', 'Operator Packing', 'King'],
   users: ['King'],
 }
 
