@@ -4,8 +4,8 @@ import DeficitBadge from './DeficitBadge'
 import WipBadge from './WipBadge'
 
 const STAGES = [
-  { key: 'production', label: 'Produksi' },
-  { key: 'packing', label: 'Packing' },
+  { key: 'production', label: 'Segregasi' },
+  { key: 'packing', label: 'Polibag' },
 ]
 
 function toMap(groups) {
@@ -80,7 +80,7 @@ export default function Dashboard({ orders, productions, packing, loading }) {
         <p className="text-sm text-inkFaint">
           Mulai dengan mencatat order (beserta nomor PO) pada tab{' '}
           <span className="font-semibold">Order</span>, lalu input hasil tiap tahap pada tab{' '}
-          <span className="font-semibold">Input Produksi / Washing / Packing</span>.
+          <span className="font-semibold">Input Segregasi / Input Polibag</span>.
         </p>
       </div>
     )
@@ -92,7 +92,7 @@ export default function Dashboard({ orders, productions, packing, loading }) {
       <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-6">
         <StatCard label="Total PO" value={totalPO} />
         <StatCard
-          label="PO Selesai (Packing)"
+          label="PO Selesai (Polibag)"
           value={`${completedPO} / ${totalPO}`}
           tone={completedPO === totalPO ? 'greenpen' : 'ink'}
         />
@@ -154,14 +154,14 @@ export default function Dashboard({ orders, productions, packing, loading }) {
                 </div>
               </div>
 
-              {/* Section Produksi */}
+              {/* Section Segregasi */}
               <div className="divide-y divide-paperLine">
-                <StageSection label="Produksi" group={stageGroupMaps.production.get(po)} />
+                <StageSection label="Segregasi" group={stageGroupMaps.production.get(po)} />
 
-                {/* Section WIP — barang yang sudah Produksi tapi belum Packing */}
+                {/* Section WIP — barang yang sudah Segregasi tapi belum Polibag */}
                 <WipSection group={wipGroup} />
 
-                <StageSection label="Packing" group={stageGroupMaps.packing.get(po)} />
+                <StageSection label="Polibag" group={stageGroupMaps.packing.get(po)} />
               </div>
             </div>
           )
@@ -177,14 +177,14 @@ function WipSection({ group }) {
     <div>
       <div className="flex items-center justify-between px-5 py-2.5 bg-amberSoft/20">
         <span className="font-display uppercase tracking-widest text-ink text-xs">
-          WIP — Belum Di-Packing
+          WIP — Belum Di-Polibag
         </span>
         <div className="flex items-center gap-3 text-xs font-mono text-inkSoft">
           <span>
-            Produksi <span className="tabular">{group.totalProduced}</span>
+            Segregasi <span className="tabular">{group.totalProduced}</span>
           </span>
           <span>
-            Packing <span className="tabular">{group.totalPacked}</span>
+            Polibag <span className="tabular">{group.totalPacked}</span>
           </span>
           <WipBadge value={group.totalWip} />
         </div>
@@ -201,8 +201,8 @@ function WipSection({ group }) {
                 <tr className="text-left text-inkFaint font-mono text-[11px] uppercase border-b border-paperLine/60">
                   <th className="py-1.5 pl-5 pr-4">Body</th>
                   <th className="py-1.5 pr-4">Size</th>
-                  <th className="py-1.5 pr-4 text-right">Produksi</th>
-                  <th className="py-1.5 pr-4 text-right">Packing</th>
+                  <th className="py-1.5 pr-4 text-right">Segregasi</th>
+                  <th className="py-1.5 pr-4 text-right">Polibag</th>
                   <th className="py-1.5 pr-5 text-right">WIP</th>
                 </tr>
               </thead>
