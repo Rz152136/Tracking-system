@@ -12,17 +12,17 @@ import { canAccess, firstAllowedTab } from './utils/permissions'
 const TITLES = {
   dashboard: 'Ringkasan Produksi',
   orders: 'Data Order',
-  production: 'Input Produksi',
-  packing: 'Input Packing',
+  production: 'Input Segregasi',
+  packing: 'Input Polibag',
   users: 'Kelola User',
 }
 
 const DESCRIPTIONS = {
   dashboard:
-    'Perbandingan Order vs Produksi vs Packing per PO, Style, Body, dan Size. Angka merah menandai kekurangan.',
+    'Perbandingan Order vs Segregasi vs Polibag per PO, Style, Body, dan Size. Angka merah menandai kekurangan.',
   orders: 'Catat detail order per PO, Style, Body, dan Size.',
-  production: 'Catat hasil produksi harian sesuai kombinasi PO, Style, Body, dan Size yang sudah diorder.',
-  packing: 'Catat hasil packing harian sesuai kombinasi PO, Style, Body, dan Size yang sudah diorder.',
+  production: 'Catat hasil segregasi harian sesuai kombinasi PO, Style, Body, dan Size yang sudah diorder.',
+  packing: 'Catat hasil polibag harian sesuai kombinasi PO, Style, Body, dan Size yang sudah diorder.',
   users: 'Tambah user baru dan atur level akses tiap user.',
 }
 
@@ -94,7 +94,7 @@ function AppShell() {
         {activeTab === 'production' && (
           <StagePage
             collectionName="productions"
-            stageLabel="Produksi"
+            stageLabel="Segregasi"
             orders={orders}
             entries={productions}
             loading={loadingProductions}
@@ -103,7 +103,7 @@ function AppShell() {
         {activeTab === 'packing' && (
           <StagePage
             collectionName="packing"
-            stageLabel="Packing"
+            stageLabel="Polibag"
             orders={orders}
             entries={packing}
             loading={loadingPacking}
