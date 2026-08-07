@@ -1,4 +1,3 @@
-
 import { useState } from 'react'
 import { useAuth } from '../context/AuthContext'
 
@@ -94,7 +93,7 @@ export default function Login() {
           }}
         >
           <span className="font-display text-paper/90 text-lg sm:text-2xl tracking-widest uppercase">
-            Spec
+            RI
           </span>
           <div className="absolute right-0 top-0 h-full w-px border-r-2 border-dashed border-paper/30" />
           <Dot style={{ top: '30%' }} />
@@ -109,7 +108,7 @@ export default function Login() {
           }}
         >
           <span className="font-display text-paper/90 text-lg sm:text-2xl tracking-widest uppercase">
-            Board
+            SE
           </span>
         </div>
       </div>
@@ -128,10 +127,12 @@ export default function Login() {
         >
           <div className="text-center mb-6 sm:mb-8">
             <div className="font-display text-2xl sm:text-3xl tracking-wide text-ink">
-              SPEC BOARD
+              RISE
             </div>
-            <div className="text-[10px] sm:text-[11px] font-mono text-inkFaint mt-1.5 tracking-widest uppercase">
-              Production Tracker — Login
+            <div className="text-[10px] sm:text-[11px] font-mono text-inkFaint mt-1.5 tracking-widest uppercase leading-relaxed">
+              Real-time Industrial System for Excellence
+              <br />
+              Production Monitoring — Garment Manufacturing
             </div>
           </div>
 
