@@ -110,8 +110,8 @@ export function poStyleListFromOrders(orders) {
     if (!map.has(key)) map.set(key, { po, style: o.style })
   }
   return Array.from(map.values()).sort((a, b) => {
-    if (a.po !== b.po) return a.po.localeCompare(b.po)
-    return a.style.localeCompare(b.style)
+    if (a.style !== b.style) return a.style.localeCompare(b.style)
+    return a.po.localeCompare(b.po)
   })
 }
 
