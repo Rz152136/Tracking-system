@@ -71,8 +71,8 @@ export default function Dashboard({ orders, productions, packing, loading }) {
     const arr = [...cards]
     arr.sort((a, b) => {
       if (a.isComplete !== b.isComplete) return a.isComplete ? 1 : -1
-      if (a.po !== b.po) return a.po.localeCompare(b.po)
-      return a.style.localeCompare(b.style)
+      if (a.style !== b.style) return a.style.localeCompare(b.style)
+      return a.po.localeCompare(b.po)
     })
     return arr
   }, [cards])
@@ -151,9 +151,9 @@ export default function Dashboard({ orders, productions, packing, loading }) {
             <div className="flex flex-wrap items-center justify-between gap-3 px-5 py-4 border-b border-paperLine bg-paperLine/20">
               <div className="flex items-center gap-3">
                 <span className="font-display text-lg tracking-wide text-ink uppercase">
-                  PO {c.po}
+                  {c.style}
                 </span>
-                <span className="font-mono text-sm text-inkSoft">· {c.style}</span>
+                <span className="font-mono text-sm text-inkSoft">· PO {c.po}</span>
                 <StatusStamp isComplete={c.isComplete} />
               </div>
               <div className="flex items-center gap-4 text-xs font-mono text-inkSoft">
