@@ -81,6 +81,7 @@ export default function Dashboard({ orders, productions, packing, loading }) {
     filterPO === 'all' ? sortedCards : sortedCards.filter((c) => c.po === filterPO)
 
   const totalPO = allPOs.length
+  const totalStyle = useMemo(() => new Set(cards.map((c) => c.style)).size, [cards])
   const totalCards = cards.length
   const completedCards = cards.filter((c) => c.isComplete).length
   const totalOrder = orders.reduce((s, o) => s + (Number(o.qty) || 0), 0)
@@ -111,7 +112,7 @@ export default function Dashboard({ orders, productions, packing, loading }) {
       <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-6">
         <StatCard label="Total PO" value={totalPO} />
         <StatCard
-          label="Style Selesai (Polibag)"
+          label="PO+Style Selesai (Polibag)"
           value={`${completedCards} / ${totalCards}`}
           tone={completedCards === totalCards ? 'greenpen' : 'ink'}
         />
