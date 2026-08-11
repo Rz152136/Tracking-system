@@ -100,6 +100,21 @@ export function poListFromOrders(orders) {
   return Array.from(new Set(orders.map((o) => o.po || '(Tanpa PO)'))).sort()
 }
 
+// Daftar kombinasi unik PO + Style, diurutkan. Dipakai untuk menampilkan
+// tiap Style (walau PO-nya sama) sebagai kartu terpisah di Ringkasan.
+export function poStyleListFromOrders(orders) {
+  const map = new Map()
+  for (const o of orders) {
+    const po = o.po || '(Tanpa PO)'
+    const key = `${po}\u0000${o.style}`
+    if (!map.has(key)) map.set(key, { po, style: o.style })
+  }
+  return Array.from(map.values()).sort((a, b) => {
+    if (a.po !== b.po) return a.po.localeCompare(b.po)
+    return a.style.localeCompare(b.style)
+  })
+}
+
 /**
  * WIP (Work In Progress) = qty yang sudah diproduksi tapi BELUM di-packing.
  * wip = producedQty - packedQty
