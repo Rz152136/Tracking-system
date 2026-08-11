@@ -1,316 +1,157 @@
-import { useMemo, useState } from 'react'
-import { buildStageSummary, buildWipRows, groupByPO, groupWipByStyle, poListFromOrders } from '../utils/aggregate'
-import DeficitBadge from './DeficitBadge'
-import WipBadge from './WipBadge'
-
-const STAGES = [
-  { key: 'production', label: 'Segregasi' },
-  { key: 'packing', label: 'Polibag' },
-]
-
-function toMap(groups) {
-  const m = new Map()
-  for (const g of groups) m.set(g.po, g)
-  return m
+export function keyOf(po, style, body, size) {
+  return `${po}__${style}__${body}__${size}`
 }
 
-export default function Dashboard({ orders, productions, packing, loading }) {
-  const [filterPO, setFilterPO] = useState('all')
+/**
+ * Menggabungkan data order dengan data 1 tahap proses (produksi/washing/packing)
+ * menjadi satu baris ringkasan per kombinasi PO + Style + Body + Size.
+ *
+ * selisih = totalDone - totalOrder
+ *   selisih < 0  -> masih KURANG sebanyak |selisih| pcs (ditampilkan minus, merah)
+ *   selisih >= 0 -> order sudah TERPENUHI di tahap ini (ditampilkan hijau)
+ */
+export function buildStageSummary(orders, entries) {
+  const map = new Map()
 
-  const stageGroupMaps = useMemo(() => {
-    const entriesByStage = { production: productions, packing }
-    const result = {}
-    for (const s of STAGES) {
-      const rows = buildStageSummary(orders, entriesByStage[s.key])
-      result[s.key] = toMap(groupByPO(rows))
+  for (const o of orders) {
+    const po = o.po || '(Tanpa PO)'
+    const k = keyOf(po, o.style, o.body, o.size)
+    if (!map.has(k)) {
+      map.set(k, { po, style: o.style, body: o.body, size: o.size, orderQty: 0, doneQty: 0 })
     }
-    return result
-  }, [orders, productions, packing])
+    map.get(k).orderQty += Number(o.qty) || 0
+  }
 
-  // WIP = sudah Produksi tapi belum Packing, dihitung per PO dari hasil stageGroupMaps di atas
-  const wipByPO = useMemo(() => {
-    const map = new Map()
-    for (const po of poListFromOrders(orders)) {
-      const prodItems = stageGroupMaps.production.get(po)?.items ?? []
-      const packItems = stageGroupMaps.packing.get(po)?.items ?? []
-      const rows = buildWipRows(prodItems, packItems)
-      map.set(po, {
-        po,
-        items: rows,
-        styles: groupWipByStyle(rows),
-        totalProduced: rows.reduce((s, r) => s + r.producedQty, 0),
-        totalPacked: rows.reduce((s, r) => s + r.packedQty, 0),
-        totalWip: rows.reduce((s, r) => s + r.wip, 0),
-      })
+  for (const e of entries) {
+    const po = e.po || '(Tanpa PO)'
+    const k = keyOf(po, e.style, e.body, e.size)
+    if (!map.has(k)) {
+      map.set(k, { po, style: e.style, body: e.body, size: e.size, orderQty: 0, doneQty: 0 })
     }
-    return map
-  }, [orders, stageGroupMaps])
-
-  const allPOs = useMemo(() => poListFromOrders(orders), [orders])
-
-  // Urutkan PO: yang belum selesai packing (tahap akhir) tampil lebih dulu
-  const sortedPOs = useMemo(() => {
-    const arr = [...allPOs]
-    arr.sort((a, b) => {
-      const aDone = stageGroupMaps.packing.get(a)?.isComplete ?? false
-      const bDone = stageGroupMaps.packing.get(b)?.isComplete ?? false
-      if (aDone !== bDone) return aDone ? 1 : -1
-      return a.localeCompare(b)
-    })
-    return arr
-  }, [allPOs, stageGroupMaps])
-
-  const visiblePOs = filterPO === 'all' ? sortedPOs : sortedPOs.filter((p) => p === filterPO)
-
-  const totalPO = allPOs.length
-  const completedPO = allPOs.filter((p) => stageGroupMaps.packing.get(p)?.isComplete).length
-  const totalOrder = orders.reduce((s, o) => s + (Number(o.qty) || 0), 0)
-  const totalWip = allPOs.reduce((s, p) => s + (wipByPO.get(p)?.totalWip ?? 0), 0)
-
-  if (loading) {
-    return <p className="text-sm text-inkFaint font-mono">Memuat data…</p>
+    map.get(k).doneQty += Number(e.qty) || 0
   }
 
-  if (orders.length === 0) {
-    return (
-      <div className="bg-white/70 border border-paperLine rounded-sm p-8 text-center">
-        <p className="font-display text-lg text-ink uppercase tracking-wide mb-1">
-          Belum Ada Data
-        </p>
-        <p className="text-sm text-inkFaint">
-          Mulai dengan mencatat order (beserta nomor PO) pada tab{' '}
-          <span className="font-semibold">Order</span>, lalu input hasil tiap tahap pada tab{' '}
-          <span className="font-semibold">Input Segregasi / Input Polibag</span>.
-        </p>
-      </div>
-    )
+  const rows = Array.from(map.values()).map((r) => ({
+    ...r,
+    selisih: r.doneQty - r.orderQty,
+  }))
+
+  rows.sort((a, b) => {
+    if (a.po !== b.po) return a.po.localeCompare(b.po)
+    if (a.style !== b.style) return a.style.localeCompare(b.style)
+    if (a.body !== b.body) return a.body.localeCompare(b.body)
+    return a.size.localeCompare(b.size, undefined, { numeric: true })
+  })
+
+  return rows
+}
+
+export function groupByStyle(rows) {
+  const map = new Map()
+  for (const r of rows) {
+    if (!map.has(r.style)) map.set(r.style, [])
+    map.get(r.style).push(r)
+  }
+  return Array.from(map.entries()).map(([style, items]) => ({
+    style,
+    items,
+    totalOrder: items.reduce((s, i) => s + i.orderQty, 0),
+    totalDone: items.reduce((s, i) => s + i.doneQty, 0),
+    totalSelisih: items.reduce((s, i) => s + i.selisih, 0),
+  }))
+}
+
+/**
+ * Mengelompokkan ringkasan 1 tahap berdasarkan PO.
+ * isComplete = true -> semua baris di PO ini, di tahap ini, selisih >= 0.
+ */
+export function groupByPO(rows) {
+  const map = new Map()
+  for (const r of rows) {
+    if (!map.has(r.po)) map.set(r.po, [])
+    map.get(r.po).push(r)
   }
 
-  return (
-    <div>
-      {/* Ringkasan angka */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-6">
-        <StatCard label="Total PO" value={totalPO} />
-        <StatCard
-          label="PO Selesai (Polibag)"
-          value={`${completedPO} / ${totalPO}`}
-          tone={completedPO === totalPO ? 'greenpen' : 'ink'}
-        />
-        <StatCard label="Total Order" value={totalOrder} />
-        <StatCard
-          label="Total WIP"
-          value={totalWip}
-          tone={totalWip > 0 ? 'amber' : totalWip < 0 ? 'redpen' : 'greenpen'}
-        />
-      </div>
+  const groups = Array.from(map.entries()).map(([po, items]) => {
+    const totalOrder = items.reduce((s, i) => s + i.orderQty, 0)
+    const totalDone = items.reduce((s, i) => s + i.doneQty, 0)
+    const isComplete = items.length > 0 && items.every((i) => i.selisih >= 0)
+    return {
+      po,
+      items,
+      styles: groupByStyle(items),
+      totalOrder,
+      totalDone,
+      totalSelisih: totalDone - totalOrder,
+      isComplete,
+      shortLines: items.filter((i) => i.selisih < 0).length,
+    }
+  })
 
-      {/* Filter PO */}
-      <div className="flex items-center gap-2 mb-4">
-        <label className="text-xs font-mono text-inkFaint uppercase">Filter PO</label>
-        <select
-          value={filterPO}
-          onChange={(e) => setFilterPO(e.target.value)}
-          className="border border-paperLine bg-paper px-3 py-1.5 text-sm font-mono focus:outline-none focus:ring-2 focus:ring-ink/30"
-        >
-          <option value="all">Semua PO</option>
-          {allPOs.map((p) => (
-            <option key={p} value={p}>
-              {p}
-            </option>
-          ))}
-        </select>
-      </div>
+  groups.sort((a, b) => {
+    if (a.isComplete !== b.isComplete) return a.isComplete ? 1 : -1
+    return a.po.localeCompare(b.po)
+  })
 
-      {/* Kartu per PO */}
-      <div className="space-y-8">
-        {visiblePOs.map((po) => {
-          const packingGroup = stageGroupMaps.packing.get(po)
-          const wipGroup = wipByPO.get(po)
-          return (
-            <div key={po} className="bg-white/70 border border-paperLine rounded-sm overflow-hidden">
-              {/* Header PO */}
-              <div className="flex flex-wrap items-center justify-between gap-3 px-5 py-4 border-b border-paperLine bg-paperLine/20">
-                <div className="flex items-center gap-3">
-                  <span className="font-display text-lg tracking-wide text-ink uppercase">
-                    PO {po}
-                  </span>
-                  <StatusStamp isComplete={packingGroup?.isComplete ?? false} />
-                </div>
-                <div className="flex items-center gap-4 text-xs font-mono text-inkSoft">
-                  {STAGES.map((s) => {
-                    const g = stageGroupMaps[s.key].get(po)
-                    return (
-                      <span key={s.key}>
-                        {s.label}:{' '}
-                        <span className="tabular">
-                          {g?.totalDone ?? 0}/{g?.totalOrder ?? 0}
-                        </span>
-                      </span>
-                    )
-                  })}
-                  <span>
-                    WIP: <span className="tabular">{wipGroup?.totalWip ?? 0}</span>
-                  </span>
-                </div>
-              </div>
-
-              {/* Section Segregasi */}
-              <div className="divide-y divide-paperLine">
-                <StageSection label="Segregasi" group={stageGroupMaps.production.get(po)} />
-
-                {/* Section WIP — barang yang sudah Segregasi tapi belum Polibag */}
-                <WipSection group={wipGroup} />
-
-                <StageSection label="Polibag" group={stageGroupMaps.packing.get(po)} />
-              </div>
-            </div>
-          )
-        })}
-      </div>
-    </div>
-  )
+  return groups
 }
 
-function WipSection({ group }) {
-  if (!group) return null
-  return (
-    <div>
-      <div className="flex items-center justify-between px-5 py-2.5 bg-amberSoft/20">
-        <span className="font-display uppercase tracking-widest text-ink text-xs">
-          WIP — Belum Di-Polibag
-        </span>
-        <div className="flex items-center gap-3 text-xs font-mono text-inkSoft">
-          <span>
-            Segregasi <span className="tabular">{group.totalProduced}</span>
-          </span>
-          <span>
-            Polibag <span className="tabular">{group.totalPacked}</span>
-          </span>
-          <WipBadge value={group.totalWip} />
-        </div>
-      </div>
-
-      {group.styles.map((st) => (
-        <div key={st.style}>
-          <div className="flex items-center justify-between px-5 py-1.5 bg-paper/20 border-t border-paperLine/40">
-            <span className="font-mono text-[11px] text-inkSoft uppercase">{st.style}</span>
-          </div>
-          <div className="overflow-x-auto">
-            <table className="w-full text-sm">
-              <thead>
-                <tr className="text-left text-inkFaint font-mono text-[11px] uppercase border-b border-paperLine/60">
-                  <th className="py-1.5 pl-5 pr-4">Body</th>
-                  <th className="py-1.5 pr-4">Size</th>
-                  <th className="py-1.5 pr-4 text-right">Segregasi</th>
-                  <th className="py-1.5 pr-4 text-right">Polibag</th>
-                  <th className="py-1.5 pr-5 text-right">WIP</th>
-                </tr>
-              </thead>
-              <tbody>
-                {st.items.map((r) => (
-                  <tr key={`${r.body}-${r.size}`} className="border-b border-paperLine/30 last:border-0">
-                    <td className="py-1.5 pl-5 pr-4">{r.body}</td>
-                    <td className="py-1.5 pr-4 font-mono">{r.size}</td>
-                    <td className="py-1.5 pr-4 font-mono tabular text-right">{r.producedQty}</td>
-                    <td className="py-1.5 pr-4 font-mono tabular text-right">{r.packedQty}</td>
-                    <td className="py-1.5 pr-5 text-right">
-                      <WipBadge value={r.wip} />
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        </div>
-      ))}
-    </div>
-  )
+export function poListFromOrders(orders) {
+  return Array.from(new Set(orders.map((o) => o.po || '(Tanpa PO)'))).sort()
 }
 
-function StageSection({ label, group }) {
-  if (!group) return null
-  return (
-    <div>
-      <div className="flex items-center justify-between px-5 py-2.5 bg-paper/40">
-        <span className="font-display uppercase tracking-widest text-ink text-xs">{label}</span>
-        <div className="flex items-center gap-3 text-xs font-mono text-inkSoft">
-          <span>
-            Order <span className="tabular">{group.totalOrder}</span>
-          </span>
-          <span>
-            {label} <span className="tabular">{group.totalDone}</span>
-          </span>
-          <DeficitBadge value={group.totalSelisih} />
-        </div>
-      </div>
-
-      {group.styles.map((st) => (
-        <div key={st.style}>
-          <div className="flex items-center justify-between px-5 py-1.5 bg-paper/20 border-t border-paperLine/40">
-            <span className="font-mono text-[11px] text-inkSoft uppercase">{st.style}</span>
-          </div>
-          <div className="overflow-x-auto">
-            <table className="w-full text-sm">
-              <thead>
-                <tr className="text-left text-inkFaint font-mono text-[11px] uppercase border-b border-paperLine/60">
-                  <th className="py-1.5 pl-5 pr-4">Body</th>
-                  <th className="py-1.5 pr-4">Size</th>
-                  <th className="py-1.5 pr-4 text-right">Order</th>
-                  <th className="py-1.5 pr-4 text-right">{label}</th>
-                  <th className="py-1.5 pr-5 text-right">Selisih</th>
-                </tr>
-              </thead>
-              <tbody>
-                {st.items.map((r) => (
-                  <tr key={`${r.body}-${r.size}`} className="border-b border-paperLine/30 last:border-0">
-                    <td className="py-1.5 pl-5 pr-4">{r.body}</td>
-                    <td className="py-1.5 pr-4 font-mono">{r.size}</td>
-                    <td className="py-1.5 pr-4 font-mono tabular text-right">{r.orderQty}</td>
-                    <td className="py-1.5 pr-4 font-mono tabular text-right">{r.doneQty}</td>
-                    <td className="py-1.5 pr-5 text-right">
-                      <DeficitBadge value={r.selisih} />
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        </div>
-      ))}
-    </div>
-  )
-}
-
-function StatusStamp({ isComplete }) {
-  if (isComplete) {
-    return (
-      <span className="inline-flex items-center gap-1.5 border-2 border-greenpen text-greenpen font-display uppercase tracking-widest text-xs px-3 py-1 rounded-sm -rotate-2 bg-greenpenSoft/40">
-        ✓ Selesai
-      </span>
-    )
+// Daftar kombinasi unik PO + Style, diurutkan. Dipakai untuk menampilkan
+// tiap Style (walau PO-nya sama) sebagai kartu terpisah di Ringkasan.
+export function poStyleListFromOrders(orders) {
+  const map = new Map()
+  for (const o of orders) {
+    const po = o.po || '(Tanpa PO)'
+    const key = `${po}\u0000${o.style}`
+    if (!map.has(key)) map.set(key, { po, style: o.style })
   }
-  return (
-    <span className="inline-flex items-center gap-1.5 border-2 border-amber text-amber font-display uppercase tracking-widest text-xs px-3 py-1 rounded-sm -rotate-2 bg-amberSoft/40">
-      Berjalan
-    </span>
-  )
+  return Array.from(map.values()).sort((a, b) => {
+    if (a.po !== b.po) return a.po.localeCompare(b.po)
+    return a.style.localeCompare(b.style)
+  })
 }
 
-function StatCard({ label, value, tone }) {
-  const toneClass =
-    tone === 'redpen'
-      ? 'text-redpen'
-      : tone === 'greenpen'
-        ? 'text-greenpen'
-        : tone === 'amber'
-          ? 'text-amber'
-          : 'text-ink'
-  return (
-    <div className="bg-white/70 border border-paperLine rounded-sm p-4">
-      <div className="text-[11px] font-mono text-inkFaint uppercase tracking-wide mb-1">
-        {label}
-      </div>
-      <div className={`font-display text-2xl tabular ${toneClass}`}>{value}</div>
-    </div>
-  )
+/**
+ * WIP (Work In Progress) = qty yang sudah diproduksi tapi BELUM di-packing.
+ * wip = producedQty - packedQty
+ *   wip > 0  -> masih ada barang "mengendap" di antara Produksi dan Packing
+ *   wip = 0  -> semua yang sudah diproduksi sudah selesai di-packing juga
+ *   wip < 0  -> packing lebih besar dari produksi (kemungkinan salah input, perlu dicek)
+ */
+export function buildWipRows(productionItems, packingItems) {
+  const packMap = new Map()
+  for (const item of packingItems) {
+    packMap.set(keyOf(item.po, item.style, item.body, item.size), item.doneQty)
+  }
+  return productionItems.map((item) => {
+    const packedQty = packMap.get(keyOf(item.po, item.style, item.body, item.size)) || 0
+    return {
+      po: item.po,
+      style: item.style,
+      body: item.body,
+      size: item.size,
+      producedQty: item.doneQty,
+      packedQty,
+      wip: item.doneQty - packedQty,
+    }
+  })
+}
+
+export function groupWipByStyle(rows) {
+  const map = new Map()
+  for (const r of rows) {
+    if (!map.has(r.style)) map.set(r.style, [])
+    map.get(r.style).push(r)
+  }
+  return Array.from(map.entries()).map(([style, items]) => ({
+    style,
+    items,
+    totalProduced: items.reduce((s, i) => s + i.producedQty, 0),
+    totalPacked: items.reduce((s, i) => s + i.packedQty, 0),
+    totalWip: items.reduce((s, i) => s + i.wip, 0),
+  }))
 }
